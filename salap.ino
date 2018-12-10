@@ -92,6 +92,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
     
   if(strTopic == "HA/salap/shade") {
     switch1 = String((char*)payload);
+    
+    if(switch1 == "STOP") {
+      Serial.println("STOP");
+      startsalap = millis();
+      digitalWrite(salapsu, HIGH);
+      digitalWrite(salapgiu, HIGH); 
+    }
+    
     if(switch1 == "GIU") {
       Serial.println("GIU");
       startsalap = millis();
