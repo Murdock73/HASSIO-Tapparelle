@@ -138,6 +138,7 @@ void loop()
       digitalWrite(studiosu, HIGH);      
       startstudio = 0;
       Serial.print("FINE TAPPARELLA");
+      client.publish(studio_topic, "STOP"); // cambio lo stato dello switch MQTT a STOP
     }
   }
 }
