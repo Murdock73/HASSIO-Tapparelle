@@ -58,12 +58,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
       
     if(switch1 == "STOP") {
       Serial.println("STOP");
-      startstudio = millis();
       digitalWrite(studiosu, LOW);
       digitalWrite(studiogiu, LOW);
       delay(10);
       digitalWrite(studiosu, HIGH);
       digitalWrite(studiogiu, HIGH); 
+      startstudio = 0;
     }
   
     if(switch1 == "GIU") {
