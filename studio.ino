@@ -3,10 +3,10 @@
 
 // Connection parms
 const char* ssid = "Myssid";
-const char* password = "Mypassword";
+const char* password = "Mypassw";
 const char* mqtt_server = "192.168.1.100";
-const char* MQTTuser = "Myuser";
-const char* MQTTpwd = "Mypassord";
+const char* MQTTuser = "Mymatt";
+const char* MQTTpwd = "Mymattpassw";
 const char* studio_topic = "HA/studio/shade/state";
 
 
