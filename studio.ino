@@ -2,19 +2,17 @@
 #include <PubSubClient.h>
 
 // Connection parms
-const char* ssid = "Myssid";
-const char* password = "Mypassw";
-const char* mqtt_server = "192.168.1.100";
-const char* MQTTuser = "Mymatt";
-const char* MQTTpwd = "Mymattpassw";
-const char* studio_topic = "HA/studio/shade/state";
-
+const char* ssid = "T************1";
+const char* password = "*************";
+const char* mqtt_server = "192.168.1.xxx";
+const char* MQTTuser = "********";
+const char* MQTTpwd = "**********";
 
 // PubSubClient Settings
 WiFiClient espClient;
 PubSubClient client(espClient);
 String switch1;
-String saveswitch1;
+String saveswitch1 = " ";
 String strTopic;
 String strPayload;
 
@@ -26,6 +24,7 @@ int studiogiu = 0; // Pin per tapparella studio giu
 int studiosu = 2; // Pin per tapparella studio su
 unsigned long startstudio = 0;
 unsigned long endstudio = 23000;
+bool firstshot = false;
 
 void setup_wifi() {
 
@@ -57,24 +56,35 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if(strTopic == "HA/studio/shade"){
     switch1 = String((char*)payload);
     Serial.println(switch1);
-      
+
+    if(switch1 == "RESET") {
+      Serial.println("reset");
+      saveswitch1 = " ";
+      ESP.restart();
+    }
+    
     if(switch1 == "STOP") {
+      Serial.println("FERMA TUTTO");
+      digitalWrite(studiosu, LOW);
+      digitalWrite(studiogiu, LOW);
       digitalWrite(studiosu, HIGH);
-      digitalWrite(studiogiu, HIGH); 
+      digitalWrite(studiogiu, HIGH);
       startstudio = 0;
     }
-  
+
     if(switch1 == "GIU" && switch1 != saveswitch1) {
-      Serial.println("SCENDO");
+      Serial.println("fai scendere");
       startstudio = millis();
       digitalWrite(studiogiu, LOW); 
+      digitalWrite(studiosu, HIGH); 
       saveswitch1 = switch1;
     }
     
     if(switch1 == "SU" && switch1 != saveswitch1) {
-      Serial.println("ALZO");
+      Serial.println("fai salire");
       startstudio = millis();
-      digitalWrite(studiosu, LOW); 
+      digitalWrite(studiosu, LOW);
+      digitalWrite(studiogiu, HIGH);
       saveswitch1 = switch1;
     }
   }
