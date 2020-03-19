@@ -2,16 +2,17 @@
 #include <PubSubClient.h>
 
 // Connection parms
-const char* ssid = "***********";
-const char* password = "***********";
-const char* mqtt_server = "192.168.1.xxx";
-const char* MQTTuser = "**********";
-const char* MQTTpwd = "**********";
+const char* ssid = "*********";
+const char* password = "************";
+const char* mqtt_server = "192.168.1.100";
+const char* MQTTuser = "***********";
+const char* MQTTpwd = "************";
 
 // PubSubClient Settings
 WiFiClient espClient;
 PubSubClient client(espClient);
 String switch1;
+String saveswitch1 = " ";
 String strTopic;
 String strPayload;
 
@@ -51,42 +52,40 @@ void setup_wifi() {
 void callback(char* topic, byte* payload, unsigned int length) {
   payload[length] = '\0';
   strTopic = String((char*)topic);
-  Serial.println(strTopic);
 
   if(strTopic == "HA/salag/shade"){
-    switch1 = String((char*)payload)
-       
+    switch1 = String((char*)payload);
+    Serial.println(switch1);
+
+    if(switch1 == "RESET") {
+      Serial.println("reset");
+      saveswitch1 = " ";
+      ESP.restart();
+    }
+    
     if(switch1 == "STOP") {
-      Serial.println("STOP");
-      startcucina = millis();
-      digitalWrite(cucinasu, HIGH);
-      digitalWrite(cucinagiu, HIGH); 
+      Serial.println("FERMA TUTTO");
+      digitalWrite(salagsu, LOW);
+      digitalWrite(salaggiu, LOW);
+      digitalWrite(salagsu, HIGH);
+      digitalWrite(salaggiu, HIGH);
+      startsalag = 0;
+    }
+
+    if(switch1 == "GIU" && switch1 != saveswitch1) {
+      Serial.println("fai scendere");
+      startsalag = millis();
+      digitalWrite(salaggiu, LOW); 
+      digitalWrite(salagsu, HIGH); 
+      saveswitch1 = switch1;
     }
     
-    if(switch1 == "GIU") {
-      Serial.println("GIU");
-      if (startsalag > 0) {         //se il contatore del tempo è > 0 stoppo i relè
-        digitalWrite(salaggiu, HIGH);
-        digitalWrite(salagsu, HIGH);      
-        startsalag = 0;
-        Serial.print("FINE TAPPARELLA");
-      } else {
-        startsalag = millis();
-        digitalWrite(salaggiu, LOW); 
-      }
-    }
-    
-    if(switch1 == "SU") {
-      Serial.println("SU");
-      if (startsalag > 0) {         //se il contatore del tempo è > 0 stoppo i relè
-        digitalWrite(salaggiu, HIGH);
-        digitalWrite(salagsu, HIGH);      
-        startsalag = 0;
-        Serial.print("FINE TAPPARELLA");
-      } else {
-        startsalag = millis();
-        digitalWrite(salagsu, LOW); 
-      }
+    if(switch1 == "SU" && switch1 != saveswitch1) {
+      Serial.println("fai salire");
+      startsalag = millis();
+      digitalWrite(salagsu, LOW);
+      digitalWrite(salaggiu, HIGH);
+      saveswitch1 = switch1;
     }
   }
 }
@@ -97,7 +96,7 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("ESP8266_salag",MQTTuser, MQTTpwd)) {
+    if (client.connect("ESP8266_salag", MQTTuser, MQTTpwd)) {
       Serial.println("connected");
       // Once connected, publish an announcement...
       client.subscribe("HA/salag/#");
