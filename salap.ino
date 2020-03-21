@@ -21,6 +21,7 @@ const char* MQTTpwd = "**********";
 WiFiClient espClient;
 PubSubClient client(espClient);
 String switch1;
+String saveswitch1 = " ";
 String strTopic;
 String strPayload;
 #define temperature_topic "HA/salap/temperature/state"
@@ -93,24 +94,36 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if(strTopic == "HA/salap/shade") {
     switch1 = String((char*)payload);
     
-    if(switch1 == "STOP") {
-      Serial.println("STOP");
-      startsalap = millis();
-      digitalWrite(salapsu, HIGH);
-      digitalWrite(salapgiu, HIGH); 
+    
+    if(switch1 == "RESET") {
+      Serial.println("reset");
+      saveswitch1 = " ";
+      ESP.restart();
     }
     
-    if(switch1 == "GIU") {
-      Serial.println("GIU");
-      startsalap = millis();
-      digitalWrite(salapsu, HIGH); // in caso di reverse del comando spengo il rele inverso
-      digitalWrite(salapgiu, LOW); 
+    if(switch1 == "STOP") {
+      Serial.println("FERMA TUTTO");
+      digitalWrite(salapsu, LOW);
+      digitalWrite(salapgiu, LOW);
+      digitalWrite(salapsu, HIGH);
+      digitalWrite(salapgiu, HIGH);
+      startsalap = 0;
     }
-    if(switch1 == "SU") {
-      Serial.println("SU");
+
+    if(switch1 == "GIU" && switch1 != saveswitch1) {
+      Serial.println("fai scendere");
       startsalap = millis();
-      digitalWrite(salapgiu, HIGH); // in caso di reverse del comando spengo il rele inverso
-      digitalWrite(salapsu, LOW); 
+      digitalWrite(salapgiu, LOW); 
+      digitalWrite(salapsu, HIGH); 
+      saveswitch1 = switch1;
+    }
+    
+    if(switch1 == "SU" && switch1 != saveswitch1) {
+      Serial.println("fai salire");
+      startsalap = millis();
+      digitalWrite(salapsu, LOW);
+      digitalWrite(salapgiu, HIGH);
+      saveswitch1 = switch1;
     }
   }
 }
