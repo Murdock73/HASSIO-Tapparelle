@@ -1,5 +1,8 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
 #include <PubSubClient.h>
+#include <ArduinoOTA.h>
 
 // Connection parms
 const char* ssid = "**********";
@@ -12,6 +15,7 @@ const char* MQTTpwd = "**********";
 WiFiClient espClient;
 PubSubClient client(espClient);
 String switch1;
+String saveswitch1 = " ";
 String strTopic;
 String strPayload;
 
@@ -19,8 +23,8 @@ String strPayload;
 // Misc variables
 unsigned long timestamp; 
 
-int cucinagiu = 0; // Pin per tapparella cucina giu
-int cucinasu = 2; // Pin per tapparella cucina su
+int cucinagiu = D1; // Pin per tapparella cucina giu
+int cucinasu = D2; // Pin per tapparella cucina su
 unsigned long startcucina = 0;
 unsigned long endcucina = 26000;
 bool firstshot = false;
@@ -51,35 +55,40 @@ void setup_wifi() {
 void callback(char* topic, byte* payload, unsigned int length) {
   payload[length] = '\0';
   strTopic = String((char*)topic);
-  Serial.println(strTopic);
 
-  
-  if (firstshot = false) {
-    firstshot = true;
-  } else {
-    if(strTopic == "HA/cucina/shade"){
-      switch1 = String((char*)payload);
-      
-      if(switch1 == "STOP") {
-        Serial.println("STOP");
-        startcucina = millis();
-        digitalWrite(cucinasu, HIGH);
-        digitalWrite(cucinagiu, HIGH); 
-      }
-      
-      if(switch1 == "GIU") {
-        Serial.println("GIU");
-        startcucina = millis();
-        digitalWrite(cucinasu, HIGH); // in caso di reverse del comando spengo il rele inverso
-        digitalWrite(cucinagiu, LOW); 
-      }
+  if(strTopic == "HA/cucina/shade"){
+    switch1 = String((char*)payload);
+    Serial.println(switch1);
+
+    if(switch1 == "RESET") {
+      Serial.println("reset");
+      saveswitch1 = " ";
+      ESP.restart();
+    }
     
-      if(switch1 == "SU") {
-        Serial.println("SU");
-        startcucina = millis();
-        digitalWrite(cucinagiu, HIGH); // in caso di reverse del comando spengo il rele inverso
-        digitalWrite(cucinasu, LOW); 
-      }
+    if(switch1 == "STOP") {
+      Serial.println("FERMA TUTTO");
+      digitalWrite(cucinasu, HIGH);
+      digitalWrite(cucinagiu, HIGH);
+      digitalWrite(cucinasu, LOW);
+      digitalWrite(cucinagiu, LOW);
+      startcucina = 0;
+    }
+
+    if(switch1 == "GIU" && switch1 != saveswitch1) {
+      Serial.println("fai scendere");
+      startcucina = millis();
+      digitalWrite(cucinagiu, HIGH); 
+      digitalWrite(cucinasu, LOW); 
+      saveswitch1 = switch1;
+    }
+    
+    if(switch1 == "SU" && switch1 != saveswitch1) {
+      Serial.println("fai salire");
+      startcucina = millis();
+      digitalWrite(cucinasu, HIGH);
+      digitalWrite(cucinagiu, LOW);
+      saveswitch1 = switch1;
     }
   }
 }
@@ -90,11 +99,10 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("ESP8266_cucina",MQTTuser, MQTTpwd)) {
+    if (client.connect("ESP8266_cucina", MQTTuser, MQTTpwd)) {
       Serial.println("connected");
       // Once connected, publish an announcement...
       client.subscribe("HA/cucina/#");
-      client.subscribe("HA/stop/#");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -112,14 +120,46 @@ void setup()
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
   pinMode(cucinagiu, OUTPUT);
-  digitalWrite(cucinagiu, HIGH);
+  digitalWrite(cucinagiu, LOW);
   pinMode(cucinasu, OUTPUT);
-  digitalWrite(cucinasu, HIGH);
+  digitalWrite(cucinasu, LOW);
+
+  // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  ArduinoOTA.setHostname("esp8266-CUCINA");
+
+  // No authentication by default
+  //ArduinoOTA.setPassword((const char *)"CUCINA");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  Serial.println("Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
 
 }
- 
+
 void loop()
 {
+  ArduinoOTA.handle();
   if (!client.connected()) {
     reconnect();
   }
@@ -128,8 +168,8 @@ void loop()
   if (startcucina > 0) {
     if ((millis() - startcucina) > endcucina 
      || (millis() - startcucina) < 0) {
-      digitalWrite(cucinagiu, HIGH);
-      digitalWrite(cucinasu, HIGH);      
+      digitalWrite(cucinagiu, LOW);
+      digitalWrite(cucinasu, LOW);      
       startcucina = 0;
       Serial.print("FINE TAPPARELLA");
     }
