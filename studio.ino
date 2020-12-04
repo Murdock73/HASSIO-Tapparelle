@@ -1,5 +1,8 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
 #include <PubSubClient.h>
+#include <ArduinoOTA.h>
 
 // Connection parms
 const char* ssid = "T************1";
@@ -20,8 +23,8 @@ String strPayload;
 // Misc variables
 unsigned long timestamp; 
 
-int studiogiu = 0; // Pin per tapparella studio giu
-int studiosu = 2; // Pin per tapparella studio su
+int studiogiu = D1; // Pin per tapparella studio giu
+int studiosu = D2; // Pin per tapparella studio su
 unsigned long startstudio = 0;
 unsigned long endstudio = 23000;
 bool firstshot = false;
@@ -121,10 +124,42 @@ void setup()
   pinMode(studiosu, OUTPUT);
   digitalWrite(studiosu, HIGH);
 
+  // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  ArduinoOTA.setHostname("esp8266-STUDIO");
+
+  // No authentication by default
+  // ArduinoOTA.setPassword((const char *)"123");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  Serial.println("Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
 }
- 
+
 void loop()
 {
+  ArduinoOTA.handle();
   if (!client.connected()) {
     reconnect();
   }
