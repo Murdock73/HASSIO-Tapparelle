@@ -5,11 +5,8 @@
 #include <ArduinoOTA.h>
 
 // Connection parms
-const char* ssid = "************";
-const char* password = "**********";
-const char* mqtt_server = "192.168.1.xxx";
-const char* MQTTuser = "**********";
-const char* MQTTpwd = "************";
+#include <SSID.h>
+#include <Studio.h>
 
 // PubSubClient Settings
 WiFiClient espClient;
@@ -23,8 +20,8 @@ String strPayload;
 // Misc variables
 unsigned long timestamp; 
 
-int studiogiu = D2; // Pin per tapparella studio giu
-int studiosu = D1; // Pin per tapparella studio su
+int studiogiu = D4; // Pin per tapparella studio giu
+int studiosu = D3; // Pin per tapparella studio su
 unsigned long startstudio = 0;
 unsigned long endstudio = 23000;
 bool firstshot = false;
@@ -70,24 +67,25 @@ void callback(char* topic, byte* payload, unsigned int length) {
       Serial.println("FERMA TUTTO");
       digitalWrite(studiosu, HIGH);
       digitalWrite(studiogiu, HIGH);
-      digitalWrite(studiosu, LOW);
-      digitalWrite(studiogiu, LOW);
+      delay(100);
       startstudio = 0;
     }
 
     if(switch1 == "GIU" && switch1 != saveswitch1) {
       Serial.println("fai scendere");
       startstudio = millis();
-      digitalWrite(studiogiu, HIGH); 
-      digitalWrite(studiosu, LOW); 
+      digitalWrite(studiogiu, LOW); 
+      digitalWrite(studiosu, HIGH);
+      delay(100);
       saveswitch1 = switch1;
     }
     
     if(switch1 == "SU" && switch1 != saveswitch1) {
       Serial.println("fai salire");
       startstudio = millis();
-      digitalWrite(studiosu, HIGH);
-      digitalWrite(studiogiu, LOW);
+      digitalWrite(studiosu, LOW);
+      digitalWrite(studiogiu, HIGH);
+      delay(100);
       saveswitch1 = switch1;
     }
   }
@@ -120,9 +118,10 @@ void setup()
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
   pinMode(studiogiu, OUTPUT);
-  digitalWrite(studiogiu, LOW);
+  digitalWrite(studiogiu, HIGH);
   pinMode(studiosu, OUTPUT);
-  digitalWrite(studiosu, LOW);
+  digitalWrite(studiosu, HIGH);
+  delay(100);
 
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
@@ -168,9 +167,10 @@ void loop()
   if (startstudio > 0) {
     if ((millis() - startstudio) > endstudio 
      || (millis() - startstudio) < 0) {
-      digitalWrite(studiogiu, LOW);
-      digitalWrite(studiosu, LOW);      
+      digitalWrite(studiogiu, HIGH);
+      digitalWrite(studiosu, HIGH);  
       startstudio = 0;
+      delay(100);
       Serial.print("FINE TAPPARELLA");
     }
   }
