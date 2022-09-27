@@ -23,7 +23,7 @@ unsigned long timestamp;
 int studiogiu = D4; // Pin per tapparella studio giu
 int studiosu = D3; // Pin per tapparella studio su
 unsigned long startstudio = 0;
-unsigned long endstudio = 23000;
+unsigned long endstudio = 28000;
 bool firstshot = false;
 
 void setup_wifi() {
