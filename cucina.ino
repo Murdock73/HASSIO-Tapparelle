@@ -5,11 +5,8 @@
 #include <ArduinoOTA.h>
 
 // Connection parms
-const char* ssid = "**********";
-const char* password = "***********";
-const char* mqtt_server = "192.168.1.***";
-const char* MQTTuser = "**********";
-const char* MQTTpwd = "**********";
+#include <SSID.h>
+#include <Cucina.h>
 
 // PubSubClient Settings
 WiFiClient espClient;
@@ -68,9 +65,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
     
     if(switch1 == "STOP") {
       Serial.println("FERMA TUTTO");
-      digitalWrite(cucinasu, HIGH);
-      digitalWrite(cucinagiu, HIGH);
       digitalWrite(cucinasu, LOW);
+      delay(100);
       digitalWrite(cucinagiu, LOW);
       startcucina = 0;
     }
@@ -78,16 +74,19 @@ void callback(char* topic, byte* payload, unsigned int length) {
     if(switch1 == "GIU" && switch1 != saveswitch1) {
       Serial.println("fai scendere");
       startcucina = millis();
+      digitalWrite(cucinasu, LOW);
+      delay(100);
       digitalWrite(cucinagiu, HIGH); 
-      digitalWrite(cucinasu, LOW); 
+ 
       saveswitch1 = switch1;
     }
     
     if(switch1 == "SU" && switch1 != saveswitch1) {
       Serial.println("fai salire");
       startcucina = millis();
-      digitalWrite(cucinasu, HIGH);
       digitalWrite(cucinagiu, LOW);
+      delay(100);
+      digitalWrite(cucinasu, HIGH);
       saveswitch1 = switch1;
     }
   }
@@ -121,6 +120,7 @@ void setup()
   client.setCallback(callback);
   pinMode(cucinagiu, OUTPUT);
   digitalWrite(cucinagiu, LOW);
+  delay(100);
   pinMode(cucinasu, OUTPUT);
   digitalWrite(cucinasu, LOW);
 
@@ -131,7 +131,7 @@ void setup()
   ArduinoOTA.setHostname("esp8266-CUCINA");
 
   // No authentication by default
-  //ArduinoOTA.setPassword((const char *)"CUCINA");
+  ArduinoOTA.setPassword((const char *)"123");
 
   ArduinoOTA.onStart([]() {
     Serial.println("Start");
@@ -169,6 +169,7 @@ void loop()
     if ((millis() - startcucina) > endcucina 
      || (millis() - startcucina) < 0) {
       digitalWrite(cucinagiu, LOW);
+      delay(100);
       digitalWrite(cucinasu, LOW);      
       startcucina = 0;
       Serial.print("FINE TAPPARELLA");
