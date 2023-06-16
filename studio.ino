@@ -66,26 +66,26 @@ void callback(char* topic, byte* payload, unsigned int length) {
     if(switch1 == "STOP") {
       Serial.println("FERMA TUTTO");
       digitalWrite(studiosu, HIGH);
-      digitalWrite(studiogiu, HIGH);
       delay(100);
+      digitalWrite(studiogiu, HIGH);
       startstudio = 0;
     }
 
     if(switch1 == "GIU" && switch1 != saveswitch1) {
       Serial.println("fai scendere");
       startstudio = millis();
-      digitalWrite(studiogiu, LOW); 
       digitalWrite(studiosu, HIGH);
       delay(100);
+      digitalWrite(studiogiu, LOW); 
       saveswitch1 = switch1;
     }
     
     if(switch1 == "SU" && switch1 != saveswitch1) {
       Serial.println("fai salire");
       startstudio = millis();
-      digitalWrite(studiosu, LOW);
       digitalWrite(studiogiu, HIGH);
-      delay(100);
+      delay(100); 
+      digitalWrite(studiosu, LOW);
       saveswitch1 = switch1;
     }
   }
@@ -119,6 +119,7 @@ void setup()
   client.setCallback(callback);
   pinMode(studiogiu, OUTPUT);
   digitalWrite(studiogiu, HIGH);
+  delay(100); 
   pinMode(studiosu, OUTPUT);
   digitalWrite(studiosu, HIGH);
   delay(100);
@@ -168,9 +169,9 @@ void loop()
     if ((millis() - startstudio) > endstudio 
      || (millis() - startstudio) < 0) {
       digitalWrite(studiogiu, HIGH);
+      delay(100); 
       digitalWrite(studiosu, HIGH);  
       startstudio = 0;
-      delay(100);
       Serial.print("FINE TAPPARELLA");
     }
   }
