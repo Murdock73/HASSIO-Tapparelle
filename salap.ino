@@ -1,21 +1,12 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
 #include <PubSubClient.h>
-#include <OneWire.h> 
-#include <DallasTemperature.h>
-
-// Setup for Onewire Temp sensor
-// Data wire is plugged into pin 2 on the ESP8266 
-#define ONE_WIRE_BUS D4
-OneWire oneWire(ONE_WIRE_BUS); 
-DallasTemperature DS18B20(&oneWire);
+#include <ArduinoOTA.h>
 
 // Connection parms
-const char* ssid = "**********";
-const char* password = "**********";
-const char* mqtt_server = "192.168.1.***";
-const char* MQTTuser = "**********";
-const char* MQTTpwd = "**********";
-
+#include <SSID.h>
+#include <MQTTuser.h>
 
 // PubSubClient Settings
 WiFiClient espClient;
@@ -24,19 +15,18 @@ String switch1;
 String saveswitch1 = " ";
 String strTopic;
 String strPayload;
-#define temperature_topic "HA/salap/temperature/state"
+
 
 // Misc variables
 unsigned long timestamp; 
-const int PubInterval = 60000; // Intervallo per pubblicazione e lettura sensore in ms
-float temp = 0.0;
-String temperature;
+
 int terrazzo = D0; // Pin per luci terrazzo
 int giardino = D1; // Pin per luci giardino
-int salapgiu = D2; // Pin per tapparella sala giu
-int salapsu = D3; // Pin per tapparella sala giu
+int salapgiu = D2; // Pin per tapparella salap giu
+int salapsu = D3; // Pin per tapparella salap su
 unsigned long startsalap = 0;
-unsigned long endsalap = 24000;
+unsigned long endsalap = 27000;
+bool firstshot = false;
 
 void setup_wifi() {
 
@@ -64,7 +54,6 @@ void setup_wifi() {
 void callback(char* topic, byte* payload, unsigned int length) {
   payload[length] = '\0';
   strTopic = String((char*)topic);
-  Serial.println(strTopic);
 
  if(strTopic == "HA/salap/garden"){
     switch1 = String((char*)payload);
@@ -89,12 +78,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
       digitalWrite(terrazzo, HIGH); 
     }
   }
-
-    
-  if(strTopic == "HA/salap/shade") {
+  if(strTopic == "HA/salap/shade"){
     switch1 = String((char*)payload);
-    
-    
+    Serial.println(switch1);
+
     if(switch1 == "RESET") {
       Serial.println("reset");
       saveswitch1 = " ";
@@ -103,9 +90,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
     
     if(switch1 == "STOP") {
       Serial.println("FERMA TUTTO");
-      digitalWrite(salapsu, LOW);
-      digitalWrite(salapgiu, LOW);
       digitalWrite(salapsu, HIGH);
+      delay(100);
       digitalWrite(salapgiu, HIGH);
       startsalap = 0;
     }
@@ -113,16 +99,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
     if(switch1 == "GIU" && switch1 != saveswitch1) {
       Serial.println("fai scendere");
       startsalap = millis();
-      digitalWrite(salapgiu, LOW); 
       digitalWrite(salapsu, HIGH); 
+      delay(100);
+      digitalWrite(salapgiu, LOW); 
       saveswitch1 = switch1;
     }
     
     if(switch1 == "SU" && switch1 != saveswitch1) {
       Serial.println("fai salire");
       startsalap = millis();
-      digitalWrite(salapsu, LOW);
       digitalWrite(salapgiu, HIGH);
+      delay(100);
+      digitalWrite(salapsu, LOW);
       saveswitch1 = switch1;
     }
   }
@@ -134,11 +122,11 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("ESP8266_salap",MQTTuser, MQTTpwd)) {
+    if (client.connect("ESP8266_salap", MQTTuser, MQTTpwd)) {
       Serial.println("connected");
       // Once connected, publish an announcement...
       client.subscribe("HA/salap/#");
-     } else {
+    } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
@@ -154,55 +142,65 @@ void setup()
   setup_wifi(); 
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
-  Serial.println("Dallas Temperature IC Control Library Demo"); 
-// Start up the library 
-  DS18B20.begin(); 
   pinMode(giardino, OUTPUT);
   digitalWrite(giardino, HIGH);
   pinMode(terrazzo, OUTPUT);
   digitalWrite(terrazzo, HIGH);
   pinMode(salapgiu, OUTPUT);
   digitalWrite(salapgiu, HIGH);
+  delay(100);
   pinMode(salapsu, OUTPUT);
   digitalWrite(salapsu, HIGH);
 
+  // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  ArduinoOTA.setHostname("esp8266-salap");
+
+  // No authentication by default
+  ArduinoOTA.setPassword((const char *)"123");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  Serial.println("Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
 }
- 
+
 void loop()
 {
+  ArduinoOTA.handle();
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
   
-  if ((millis() - timestamp) > PubInterval) {
-
-    timestamp = millis();
-    
-    Serial.print(" Requesting temperatures..."); 
-    DS18B20.requestTemperatures(); // Send the command to get temperature readings 
-    Serial.println("DONE"); 
-    temp = DS18B20.getTempCByIndex(0);
-    Serial.print("Temperature is: "); 
-    Serial.println(temp);  
-    
-    // pubblico la temperatura sul sensore MQTT
-    temp = DS18B20.getTempCByIndex(0);
-    Serial.print("New temperature:");
-    Serial.println(String(temp).c_str());
-    client.publish(temperature_topic, String(temp).c_str(), true);
-
-  }
-
   if (startsalap > 0) {
     if ((millis() - startsalap) > endsalap 
      || (millis() - startsalap) < 0) {
       digitalWrite(salapgiu, HIGH);
+      delay(100);
       digitalWrite(salapsu, HIGH);      
       startsalap = 0;
       Serial.print("FINE TAPPARELLA");
     }
   }
-
-
 }
